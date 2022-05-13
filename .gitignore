@@ -1,0 +1,6 @@
+# Python stuffs
+__pycache__/
+
+# see anki/dump.py
+anki/AnkiTest/
+anki/collection.anki2*

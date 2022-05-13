@@ -37,14 +37,15 @@ class Item:
             self.I = round(self.I * self.EF)
         self.next_review = day + timedelta(days=self.I)
         self.repetitions += 1
+        return q < 4
 
 def print_items(items):
-    print(f"+----------+----------+------+-----+-------------+")
-    print(f"| Question | Answer   |  EF  | I   | Next Review |")
-    print(f"+----------+----------+------+-----+-------------+")
+    print(f"+----------+----------+------+-------+-------------+")
+    print(f"| Question | Answer   |  EF  | I     | Next Review |")
+    print(f"+----------+----------+------+-------+-------------+")
     for item in items:
-        print(f"| {item.question:>8} | {item.answer:>8} | {item.EF:>.2f} | {item.I:>3} |  {item.next_review} |")
-        print(f"+----------+----------+------+-----+-------------+")
+        print(f"| {item.question:>8} | {item.answer:>8} | {item.EF:>.2f} | {item.I:>5} |  {item.next_review} |")
+        print(f"+----------+----------+------+-------+-------------+")
 
 if __name__ == "__main__":
     # Populate items
@@ -56,10 +57,17 @@ if __name__ == "__main__":
     # for i in range(365):
     for i in range(365):
         day = date.today() + timedelta(days=i)
+
+        items_to_review = Queue()
         for item in items:
             if item.next_review == day:
-                q = grade(item.question, item.repetitions + 1)
-                item.review(day, q)
+                items_to_review.put(item)
+
+        while not items_to_review.empty():
+            item = items_to_review.get()
+            q = grade(item.question, item.repetitions + 1)
+            if not item.review(day, q):
+                items_to_review.put(item)
 
     # Show results
     print_items(items)
