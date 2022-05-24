@@ -2,13 +2,8 @@ import time
 import copy
 import unittest
 import copy
-from pprint import pprint
 
-from schedv2 import Collection, Note, intTime, STARTING_FACTOR, deckDefaultConf
-
-# Tests are similar to Anki test suite.
-# They have been slightly adapted to remove unsupported features
-# and use unittest as other tests in this repository.
+from schedv2_minimal_v2 import Collection, Note, intTime, STARTING_FACTOR, deckDefaultConf
 
 
 def checkRevIvl(d, c, targetIvl):
@@ -29,7 +24,6 @@ class TestScheduler(unittest.TestCase):
         d = Collection()
         # add a note
         f = Note()
-        f['Front'] = "one"; f['Back'] = "two"
         d.addNote(f)
         # fetch it
         c = d.sched.getCard()
@@ -44,7 +38,7 @@ class TestScheduler(unittest.TestCase):
         assert c.due >= t
 
 
-    @unittest.skip("slow test")
+    # @unittest.skip("slow test")
     def test_newLimits(self):
         d = Collection()
         # Lower the new cards per day limit
@@ -54,8 +48,6 @@ class TestScheduler(unittest.TestCase):
         # add some notes
         for i in range(3):
             f = Note()
-            f['Front'] = str(i)
-            f['Back'] = str(i)
             d.addNote(f)
         # Force the fill of the new queue
         d.sched._fillNew()
@@ -67,7 +59,6 @@ class TestScheduler(unittest.TestCase):
         d = Collection()
         # add a note
         f = Note()
-        f['Front'] = "one"; f['Back'] = "two"
         f = d.addNote(f)
         # set as a learn card and rebuild queues
         c = d.cards[0]
@@ -122,7 +113,6 @@ class TestScheduler(unittest.TestCase):
     def test_relearn(self):
         d = Collection()
         f = Note()
-        f['Front'] = "one"
         d.addNote(f)
         c = d.cards[0]
         c.ivl = 100
@@ -143,58 +133,10 @@ class TestScheduler(unittest.TestCase):
         assert c.due == d.sched.today + c.ivl
 
 
-    def test_learn_day(self):
-        d = Collection()
-        # add a note
-        f = Note()
-        f['Front'] = "one"
-        f = d.addNote(f)
-        c = d.sched.getCard()
-        deckConf = copy.deepcopy(deckDefaultConf)
-        deckConf['new']['delays'] = [1, 10, 1440, 2880]
-        d.deckConf = deckConf
-        # pass it
-        d.sched.answerCard(c, 3)
-        # two reps to graduate, 1 more today
-        assert c.left%1000 == 3
-        assert c.left//1000 == 1
-        c = d.sched.getCard()
-        assert d.sched.nextIvl(c, 3) == 86400
-        # answering it will place it in queue 3
-        d.sched.answerCard(c, 3)
-        assert c.due == d.sched.today+1
-        assert c.queue == 3
-        assert not d.sched.getCard()
-        # for testing, move it back a day
-        c.due -= 1
-        c = d.sched.getCard()
-        # nextIvl should work
-        assert d.sched.nextIvl(c, 3) == 86400*2
-        # if we fail it, it should be back in the correct queue
-        d.sched.answerCard(c, 1)
-        assert c.queue == 1
-        c = d.sched.getCard()
-        d.sched.answerCard(c, 3)
-        # simulate the passing of another two days
-        c.due -= 2
-        # the last pass should graduate it into a review card
-        assert d.sched.nextIvl(c, 3) == 86400
-        d.sched.answerCard(c, 4)
-        assert c.queue == c.type == 2
-        # if the lapse step is tomorrow, failing it should handle the counts
-        # correctly
-        c.due = 0
-        d.deckConf['lapse']['delays'] = [1440]
-        c = d.sched.getCard()
-        d.sched.answerCard(c, 1)
-        assert c.queue == 3
-
-
     def test_reviews(self):
         d = Collection()
         # add a note
         f = Note()
-        f['Front'] = "one"; f['Back'] = "two"
         d.addNote(f)
         # set the card up as a review card, due 8 days ago
         c = d.cards[0]

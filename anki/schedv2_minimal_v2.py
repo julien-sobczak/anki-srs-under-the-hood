@@ -1,5 +1,7 @@
-# -*- coding: utf-8 -*-
-# License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
+"""
+Same as schedv2_minimal_v1.py without the separation between
+sub-day and day learning queues.
+"""
 
 import time
 import random
@@ -15,10 +17,6 @@ STARTING_FACTOR = 2500
 
 
 ## Utils
-
-def ids2str(ids):
-    """Given a list of integers, return a string '(int1,int2,...)'."""
-    return "(%s)" % ",".join(str(i) for i in ids)
 
 def intTime(scale=1):
     "The time in integer seconds. Pass scale=1000 to get milliseconds."
@@ -78,8 +76,7 @@ class Collection:
     def addNote(self, note):
         "Add a note to the collection. Return number of new cards."
         # add cards
-        for template in note.templates:
-            self.cards.append(self._newCard(note))
+        self.cards.append(self._newCard(note))
 
     def _newCard(self, note):
         "Create a new card."
@@ -184,11 +181,6 @@ class Scheduler:
         if c:
             return c
 
-        # day learning card due?
-        c = self._getLrnDayCard()
-        if c:
-            return c
-
         # new cards left?
         c = self._getNewCard()
         if c:
@@ -259,7 +251,6 @@ class Scheduler:
     def _resetLrn(self):
         self._updateLrnCutoff(force=True)
         self._lrnQueue = []
-        self._lrnDayQueue = []
 
     def _fillLrn(self):
         if self._lrnQueue:
@@ -271,26 +262,9 @@ class Scheduler:
         return self._lrnQueue
 
     def _getLrnCard(self, collapse=False):
-        self._maybeResetLrn(force=collapse and not self._lrnDayQueue == 0)
+        self._maybeResetLrn(force=collapse)
         if self._fillLrn():
             return self._lrnQueue.pop()
-
-    def _fillLrnDay(self):
-        if self._lrnDayQueue:
-            return True
-
-        self._lrnDayQueue = list(filter(lambda card: card.queue == 3 and card.due <= self.today, self.col.cards))
-        self._lrnDayQueue = self._lrnDayQueue[:self.queueLimit]
-        if self._lrnDayQueue:
-            # order
-            r = random.Random()
-            r.seed(self.today)
-            r.shuffle(self._lrnDayQueue)
-            return True
-
-    def _getLrnDayCard(self):
-        if self._fillLrnDay():
-            return self._lrnDayQueue.pop()
 
     def _answerLrnCard(self, card, ease):
         conf = self._lrnConf(card)
@@ -340,19 +314,7 @@ class Scheduler:
             delay = self._delayForGrade(conf, card.left)
 
         card.due = int(time.time() + delay)
-        # due today?
-        if card.due < self.dayCutoff:
-            # add some randomness, up to 5 minutes or 25%
-            maxExtra = min(300, int(delay*0.25))
-            fuzz = random.randrange(0, maxExtra)
-            card.due = min(self.dayCutoff-1, card.due + fuzz)
-            card.queue = 1
-        else:
-            # the card is due in one or more days, so we need to use the
-            # day learn queue
-            ahead = ((card.due - self.dayCutoff) // 86400) + 1
-            card.due = self.today + ahead
-            card.queue = 3
+        card.queue = 1
         return delay
 
     def _delayForGrade(self, conf, left):
@@ -589,3 +551,40 @@ class Scheduler:
     def _daysSinceCreation(self):
         startDate = datetime.datetime.fromtimestamp(self.col.crt)
         return int((time.time() - time.mktime(startDate.timetuple())) // 86400)
+
+    # Testing
+    ##########################################################################
+
+    def nextIvl(self, card, ease):
+        "Return the next interval for CARD, in seconds."
+        # (re)learning?
+        if card.queue in [0, 1]:
+            return self._nextLrnIvl(card, ease)
+        elif ease == 1:
+            # lapse
+            conf = self._lapseConf(card)
+            if conf['delays']:
+                return conf['delays'][0]*60
+            return self._lapseIvl(card, conf)*86400
+        else:
+            # review
+            return self._nextRevIvl(card, ease, fuzz=False)*86400
+
+    def _nextLrnIvl(self, card, ease):
+        if card.queue == 0:
+            card.left = self._startingLeft(card)
+        conf = self._lrnConf(card)
+        if ease == 1:
+            # fail
+            return self._delayForGrade(conf, len(conf['delays']))
+        elif ease == 2:
+            return self._delayForRepeatingGrade(conf, card.left)
+        elif ease == 4:
+            return self._graduatingIvl(card, conf, True, fuzz=False) * 86400
+        else: # ease == 3
+            left = card.left%1000 - 1
+            if left <= 0:
+                # graduate
+                return self._graduatingIvl(card, conf, False, fuzz=False) * 86400
+            else:
+                return self._delayForGrade(conf, left)

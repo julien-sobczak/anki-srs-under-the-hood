@@ -1,5 +1,6 @@
-# -*- coding: utf-8 -*-
-# License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
+"""
+Same as schedv2.py but with annotations.
+"""
 
 import time
 import random
@@ -15,10 +16,6 @@ STARTING_FACTOR = 2500
 
 
 ## Utils
-
-def ids2str(ids):
-    """Given a list of integers, return a string '(int1,int2,...)'."""
-    return "(%s)" % ",".join(str(i) for i in ids)
 
 def intTime(scale=1):
     """The time in integer seconds. Pass scale=1000 to get milliseconds."""
