@@ -1,5 +1,7 @@
 # Anki SRS Under the Hood
 
+This repository is the companion of the blog post [Anki SRS Algorithm](https://www.juliensobczak.com/inspect/2022/05/30/anki-srs-algorithm.html).
+
 ## Organization
 
 ```shell
